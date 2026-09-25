@@ -1,11 +1,19 @@
 interface McpToolDefinition {
   name: string;
   description: string;
+  /** Human-facing one-liner (fleet #1967). Optional; consumers fall back to
+   *  description. Kept in step with shared/src/types.ts — scripts/lib/
+   *  check-inlined-types.mjs reports drift at publish time. */
+  summary?: string;
   inputSchema: {
     type: 'object';
     properties: Record<string, unknown>;
     required?: string[];
+    anyOf?: Array<{ required: string[] }>;
+    oneOf?: Array<{ required: string[] }>;
+    allOf?: Array<{ required: string[] }>;
   };
+  outputSchema?: Record<string, unknown>;
 }
 
 interface McpToolExport {
@@ -29,6 +37,9 @@ interface McpToolExport {
 
 
 const BASE_URL = 'https://api.dataforseo.com';
+// Bounds DataForSEO's variable live-scrape latency (measured 3–90s). Fails with
+// an actionable message before the caller's timeout rather than hanging.
+const DFS_LIVE_TIMEOUT_MS = 55000;
 
 const tools: McpToolExport['tools'] = [
   {
@@ -70,11 +81,30 @@ async function dfsPost(path: string, body: unknown, apiKey: string, tool: string
       `${tool} requires a DataForSEO API key. Pass _apiKey = base64("login:password") from your DataForSEO account (sign up at dataforseo.com). This is a paid data source — bring your own key, or add credits at https://pipeworx.io/account.`,
     );
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // DataForSEO's /live SERP endpoint does a real-time Google scrape whose
+  // latency is highly variable (seconds to ~90s under congestion). Bound it so a
+  // congested scrape returns a clear, actionable error instead of hanging past
+  // the caller's timeout with no message.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DFS_LIVE_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') {
+      throw new Error(
+        `upstream_throttled: DataForSEO ${tool}'s live SERP endpoint didn't respond within ${DFS_LIVE_TIMEOUT_MS / 1000}s — it does a real-time Google scrape whose latency spikes under load. Retry shortly.`,
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   if (res.status === 401 || res.status === 403) {
     throw new Error(
       `DataForSEO auth failed (HTTP ${res.status}). Check _apiKey is base64("login:password") and your account is funded/verified (data endpoints return 40104 until the account is funded). Re-encode credentials and retry.`,
@@ -156,4 +186,8 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
 
 // Wave 1 (BYO-only): nominal access meter; user's own key bears DataForSEO COGS.
 // Wave 2: replace with measured `cost` CostModel (depth=20) + realCogs gate.
-export default { tools, callTool, meter: { credits: 1 } } satisfies McpToolExport;
+// Wave-2 CostModel (§4). Estimated floor = ceil(max_upstream_usd_at_cap × 1.5 × 15000).
+// seo-serp ≈ $0.002 (depth 10) → ~40 credits. MEASURE at depth=20 (read
+// tasks[0].cost) and set base = ceil(cost×15000) before PLATFORM_DATAFORSEO_AUTH
+// goes live. Only charged when our platform key backs the call (BYO is free).
+export default { tools, callTool, cost: { base: 53 }, provider: 'dataforseo' } satisfies McpToolExport;
