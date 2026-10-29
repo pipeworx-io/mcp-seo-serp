@@ -1,12 +1,20 @@
 {
   "name": "@pipeworx/mcp-seo-serp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "SEO SERP MCP — Google organic search results via DataForSEO (dataforseo.com)",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./tools.json": "./tools.json",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "mcp-seo-serp": "bin/cli.js"
+  },
+  "files": ["bin/", "lib/", "tools.json", "server.json"],
+  "engines": {
+    "node": ">=18"
   },
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "seo-serp"],
   "license": "MIT",
@@ -14,19 +22,12 @@
     "type": "git",
     "url": "git+https://github.com/pipeworx-io/mcp-seo-serp.git"
   },
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "tsx": "^4.19.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@cloudflare/workers-types": "^4.20260405.1"
-  },
+  "mcpName": "io.github.pipeworx-io/seo-serp",
   "pipeworx": {
-    "sourceHash": "v1-d70f1303f4aaf722df9df78f7f572d848d67cfc4f4efc1247724f97e6f18c59d",
-    "sourceCommit": "00c836ddeaecbdd581dcfb0fb1842efea104006e"
+    "mode": "gateway",
+    "slug": "seo-serp",
+    "gatewaySlug": "seo-serp",
+    "sourceHash": "v1-0db3002333b45b2749f4a44895e3e4d4b91b53076a0d73fd7ff30b22bebb9be1",
+    "sourceCommit": "f47d581679e1e887373df51ba623f891fbe4c464"
   }
 }
