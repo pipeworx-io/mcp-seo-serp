@@ -1,7 +1,7 @@
 [
   {
     "name": "seo_serp_google",
-    "description": "Who ranks for `<term>` on Google — live organic search results (rank, title, domain, URL, snippet) for a keyword in a given country. SEO rank-tracking and SERP analysis. Example: seo_serp_google({ keyword: \"best running shoes\", location_code: 2840, _apiKey: \"your-base64-key\" })",
+    "description": "Who ranks for `<term>` on Google — live organic search results (rank, title, domain, URL, snippet) for a keyword in a given country. SEO rank-tracking and SERP analysis. Example: seo_serp_google({ keyword: \"best running shoes\", location_code: 2840 })",
     "inputSchema": {
       "type": "object",
       "properties": {
